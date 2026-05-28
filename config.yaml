@@ -111,7 +111,7 @@ sf_cosyvoice2:
 edge_tts:
   voice: 'km-KH-PisethNeural'
   # SSML rate: "-30%" slower, "+0%" default, "+30%" faster
-  rate: '-25%'
+  rate: '-40%'
 
 # SoVITS configuration
 gpt_sovits:
@@ -125,7 +125,7 @@ f5tts:
 speed_factor:
   min: 0.9
   accept: 1.05 # Maximum acceptable speed
-  max: 1.2
+  max: 1.1
 
 # *Merge audio configuration
 min_subtitle_duration: 2.5 # Minimum subtitle duration, will be forcibly extended
@@ -138,7 +138,7 @@ tolerance: 1.5 # Allowed extension time to the next subtitle
 
 # *Final video playback speed multiplier (applied to both video + audio)
 # 0.8 = 20% slower, 1.0 = original, 1.2 = 20% faster
-final_video_speed: 0.8
+final_video_speed: 0.7
 
 ## ======================== Additional settings ======================== ##
 
