@@ -7,19 +7,19 @@
 
 ## ======================== Basic Settings ======================== ##
 
-display_language: "zh-CN"
+display_language: "zh-HK"
 
 # API settings
 api:
-  key: 'your-api-key'
-  base_url: 'https://yunwu.ai'
-  model: ''
-  llm_support_json: false
+  key: 'YOUR_GEMINI_API_KEY'
+  base_url: 'https://generativelanguage.googleapis.com/v1beta/openai/'
+  model: 'models/gemini-3.5-flash'
+  llm_support_json: true
 # *Number of LLM multi-threaded accesses, set to 1 if using local LLM
 max_workers: 4
 
 # Language settings, written into the prompt, can be described in natural language
-target_language: '简体中文'
+target_language: 'khmer'
 
 # Whether to use Demucs for vocal separation before transcription
 demucs: true
@@ -28,8 +28,8 @@ whisper:
   # ["large-v3", "large-v3-turbo"]. Note: for zh model will force to use Belle/large-v3
   model: 'large-v3'
   # Whisper specified recognition language ISO 639-1
-  language: 'en'
-  detected_language: 'en'
+  language: 'zh'
+  detected_language: 'zh'
   # Whisper running mode ["local", "cloud", "elevenlabs"]. Specifies where to run, cloud uses 302.ai API
   runtime: 'local'
   # 302.ai API key
@@ -71,7 +71,7 @@ pause_before_translate: false
 
 ## ======================== Dubbing Settings ======================== ##
 # TTS selection [sf_fish_tts, openai_tts, gpt_sovits, azure_tts, fish_tts, edge_tts, custom_tts]
-tts_method: 'azure_tts'
+tts_method: 'edge_tts'
 
 # SiliconFlow FishTTS
 sf_fish_tts:
@@ -109,7 +109,9 @@ sf_cosyvoice2:
 
 # Edge TTS configuration
 edge_tts:
-  voice: 'zh-CN-XiaoxiaoNeural'
+  voice: 'km-KH-PisethNeural'
+  # SSML rate: "-30%" slower, "+0%" default, "+30%" faster
+  rate: '-25%'
 
 # SoVITS configuration
 gpt_sovits:
@@ -121,9 +123,9 @@ f5tts:
 
 # *Audio speed range
 speed_factor:
-  min: 1
-  accept: 1.2 # Maximum acceptable speed
-  max: 1.4
+  min: 0.9
+  accept: 1.05 # Maximum acceptable speed
+  max: 1.2
 
 # *Merge audio configuration
 min_subtitle_duration: 2.5 # Minimum subtitle duration, will be forcibly extended
@@ -133,6 +135,10 @@ tolerance: 1.5 # Allowed extension time to the next subtitle
 
 
 
+
+# *Final video playback speed multiplier (applied to both video + audio)
+# 0.8 = 20% slower, 1.0 = original, 1.2 = 20% faster
+final_video_speed: 0.8
 
 ## ======================== Additional settings ======================== ##
 

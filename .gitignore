@@ -173,3 +173,5 @@ runtime/
 dev/
 installer_files/
 logs/
+.blender-toolkit/
+config.yaml.local.bak

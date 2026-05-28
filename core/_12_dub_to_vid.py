@@ -63,14 +63,37 @@ def merge_video_audio():
         f"OutlineColour={TRANS_OUTLINE_COLOR},OutlineWidth={TRANS_OUTLINE_WIDTH},"
         f"BackColour={TRANS_BACK_COLOR},Alignment=2,MarginV=27,BorderStyle=4'"
     )
-    
+
+    # Final video speed multiplier: setpts on video, atempo on audio.
+    # atempo accepts 0.5-100; chain multiple atempo for out-of-range values.
+    try:
+        speed = float(load_key("final_video_speed"))
+    except (KeyError, TypeError, ValueError):
+        speed = 1.0
+    if abs(speed - 1.0) < 1e-3:
+        v_speed_filter = ""
+        a_speed_filter = ""
+    else:
+        v_speed_filter = f",setpts=PTS/{speed}"
+        # split atempo into legal chunks (0.5..2.0) if needed
+        remaining = speed
+        atempo_parts = []
+        while remaining < 0.5:
+            atempo_parts.append("atempo=0.5")
+            remaining /= 0.5
+        while remaining > 2.0:
+            atempo_parts.append("atempo=2.0")
+            remaining /= 2.0
+        atempo_parts.append(f"atempo={remaining}")
+        a_speed_filter = "," + ",".join(atempo_parts)
+
     cmd = [
         'ffmpeg', '-y', '-i', VIDEO_FILE, '-i', background_file, '-i', normalized_dub_audio,
         '-filter_complex',
         f'[0:v]scale={TARGET_WIDTH}:{TARGET_HEIGHT}:force_original_aspect_ratio=decrease,'
         f'pad={TARGET_WIDTH}:{TARGET_HEIGHT}:(ow-iw)/2:(oh-ih)/2,'
-        f'{subtitle_filter}[v];'
-        f'[1:a][2:a]amix=inputs=2:duration=first:dropout_transition=3[a]'
+        f'{subtitle_filter}{v_speed_filter}[v];'
+        f'[1:a][2:a]amix=inputs=2:duration=first:dropout_transition=3{a_speed_filter}[a]'
     ]
 
     if load_key("ffmpeg_gpu"):
