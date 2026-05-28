@@ -186,6 +186,106 @@ def _get_audio_steps():
     return steps
 
 
+def _dubbing_controls():
+    """Render adjustable dub options. Saves to config.yaml on change."""
+    import shutil
+
+    EDGE_VOICE_PRESETS = {
+        "Khmer Female (km-KH-SreymomNeural)": "km-KH-SreymomNeural",
+        "Khmer Male (km-KH-PisethNeural)": "km-KH-PisethNeural",
+        "Chinese Female (zh-CN-XiaoxiaoNeural)": "zh-CN-XiaoxiaoNeural",
+        "Chinese Male (zh-CN-YunxiNeural)": "zh-CN-YunxiNeural",
+        "English Female (en-US-JennyNeural)": "en-US-JennyNeural",
+        "English Male (en-US-GuyNeural)": "en-US-GuyNeural",
+    }
+
+    with st.expander(f"⚙️ {t('Advanced Dubbing Options')}", expanded=False):
+        st.caption(t("Changes save to config.yaml. Clear cache after change to take effect on already-generated audio."))
+
+        # ─── Edge TTS voice ───
+        cur_voice = load_key("edge_tts.voice")
+        voice_labels = list(EDGE_VOICE_PRESETS.keys())
+        voice_values = list(EDGE_VOICE_PRESETS.values())
+        try:
+            cur_idx = voice_values.index(cur_voice)
+        except ValueError:
+            cur_idx = 0
+        sel_label = st.selectbox(
+            f"🎤 {t('TTS Voice')}", voice_labels, index=cur_idx, key="dub_voice"
+        )
+        new_voice = EDGE_VOICE_PRESETS[sel_label]
+        if new_voice != cur_voice:
+            update_key("edge_tts.voice", new_voice)
+
+        # ─── TTS base rate ───
+        cur_rate_str = str(load_key("edge_tts.rate") if "rate" in (load_key("edge_tts") or {}) else "+0%")
+        try:
+            cur_rate_int = int(cur_rate_str.replace("%", "").replace("+", ""))
+        except ValueError:
+            cur_rate_int = 0
+        new_rate_int = st.slider(
+            f"🐢 {t('TTS Base Rate (%)')}",
+            min_value=-50, max_value=30, value=cur_rate_int, step=5,
+            help=t("Negative = slower, positive = faster"),
+            key="dub_rate",
+        )
+        new_rate_str = f"{'+' if new_rate_int >= 0 else ''}{new_rate_int}%"
+        if new_rate_str != cur_rate_str:
+            update_key("edge_tts.rate", new_rate_str)
+
+        # ─── Final video speed ───
+        try:
+            cur_fvs = float(load_key("final_video_speed"))
+        except (KeyError, TypeError, ValueError):
+            cur_fvs = 1.0
+        new_fvs = st.slider(
+            f"🎬 {t('Final Video Speed')}",
+            min_value=0.70, max_value=1.30, value=float(cur_fvs), step=0.05,
+            help=t("Multiplier applied to final dubbed video (video + audio together)"),
+            key="dub_final_speed",
+        )
+        if abs(new_fvs - cur_fvs) > 1e-4:
+            update_key("final_video_speed", round(float(new_fvs), 3))
+
+        # ─── speed_factor.accept / max ───
+        col1, col2 = st.columns(2)
+        with col1:
+            cur_accept = float(load_key("speed_factor.accept"))
+            new_accept = st.slider(
+                f"⚡ {t('Pipeline Accept Speed')}",
+                min_value=1.00, max_value=1.50, value=cur_accept, step=0.05,
+                help=t("Max comfortable speed-up applied by audio pipeline"),
+                key="dub_speed_accept",
+            )
+            if abs(new_accept - cur_accept) > 1e-4:
+                update_key("speed_factor.accept", round(float(new_accept), 3))
+        with col2:
+            cur_max = float(load_key("speed_factor.max"))
+            new_max = st.slider(
+                f"⚠️ {t('Pipeline Max Speed')}",
+                min_value=1.05, max_value=1.60, value=cur_max, step=0.05,
+                help=t("Hard cap on pipeline speed-up"),
+                key="dub_speed_max",
+            )
+            if abs(new_max - cur_max) > 1e-4:
+                update_key("speed_factor.max", round(float(new_max), 3))
+
+        # ─── Reset dub cache button ───
+        if st.button(
+            f"🗑️ {t('Clear dub cache (segs + tmp)')}",
+            key="dub_clear_cache",
+            help=t("Forces TTS audio regeneration on next run"),
+        ):
+            shutil.rmtree("output/audio/segs", ignore_errors=True)
+            shutil.rmtree("output/audio/tmp", ignore_errors=True)
+            for f in ("output/dub.mp3", "output/dub.srt", "output/normalized_dub.wav"):
+                try:
+                    os.remove(f)
+                except FileNotFoundError:
+                    pass
+            st.success(t("Dub cache cleared"))
+
+
 def audio_processing_section():
     st.header(t("c. Dubbing"))
     runner = TaskRunner.get(st.session_state, "_audio_runner")
@@ -203,6 +303,10 @@ def audio_processing_section():
         """,
             unsafe_allow_html=True,
         )
+
+        # Always-visible advanced options (hide only while a task is running)
+        if not runner.is_active:
+            _dubbing_controls()
 
         if not os.path.exists(DUB_VIDEO):
             if runner.is_active:
@@ -224,6 +328,24 @@ def audio_processing_section():
             )
             if load_key("burn_subtitles"):
                 st.video(DUB_VIDEO)
+
+            # Re-run dubbing button (uses current control settings)
+            if st.button(
+                f"🔁 {t('Regenerate dub with current settings')}",
+                key="regen_dub_btn",
+                help=t("Clears dub cache + output_dub.mp4 then re-runs dub pipeline"),
+            ):
+                import shutil
+                shutil.rmtree("output/audio/segs", ignore_errors=True)
+                shutil.rmtree("output/audio/tmp", ignore_errors=True)
+                for f in (DUB_VIDEO, "output/dub.mp3", "output/dub.srt", "output/normalized_dub.wav"):
+                    try:
+                        os.remove(f)
+                    except FileNotFoundError:
+                        pass
+                runner.start(_get_audio_steps())
+                st.rerun()
+
             if st.button(t("Delete dubbing files"), key="delete_dubbing_files"):
                 delete_dubbing_files()
                 st.rerun()
